@@ -184,8 +184,14 @@ export async function fetchCustomers() {
   }
 }
 
-export async function fetchFilteredCustomers(query: string) {
+const CUSTOMER_ITEMS_PER_PAGE = 3;
+export async function fetchFilteredCustomers(
+  query: string,
+  currentPage: number
+) {
   try {
+    const offset = (currentPage - 1) * CUSTOMER_ITEMS_PER_PAGE;
+
     const data = await sql<CustomersTableType[]>`
 		SELECT
 		  customers.id,
@@ -199,9 +205,10 @@ export async function fetchFilteredCustomers(query: string) {
 		LEFT JOIN invoices ON customers.id = invoices.customer_id
 		WHERE
 		  customers.name ILIKE ${`%${query}%`} OR
-        customers.email ILIKE ${`%${query}%`}
+      customers.email ILIKE ${`%${query}%`}
 		GROUP BY customers.id, customers.name, customers.email, customers.image_url
 		ORDER BY customers.name ASC
+    LIMIT ${CUSTOMER_ITEMS_PER_PAGE} OFFSET ${offset}
 	  `;
 
     const customers = data.map((customer) => ({
@@ -214,5 +221,20 @@ export async function fetchFilteredCustomers(query: string) {
   } catch (err) {
     console.error('Database Error:', err);
     throw new Error('Failed to fetch customer table.');
+  }
+}
+
+
+export async function fetchFilteredCustomersPages(query: string) {
+  try {
+    const data = await sql`SELECT COUNT(*)
+    FROM customers
+  `;
+
+    const totalPages = Math.ceil(Number(data[0].count) / CUSTOMER_ITEMS_PER_PAGE);
+    return totalPages;
+  } catch (error) {
+    console.error('Database Error:', error);
+    throw new Error('Failed to fetch total number of invoices.');
   }
 }
